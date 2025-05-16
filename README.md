@@ -18,6 +18,8 @@ A comprehensive IoT solution for monitoring temperature and humidity in egg incu
 - 🔄 Over-the-Air (OTA) firmware updates
 - 💾 Data logging to SPIFFS file system
 - 📤 Data export functionality
+- 🐣 Start button for beginning a new batch of eggs
+- 🕰️ Input option for eggs already incubating
 - ⏰ Custom start time setting for eggs already in incubation
 - 🔃 Device restart option via web interface
 
