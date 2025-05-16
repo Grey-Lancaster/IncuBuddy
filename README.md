@@ -4,7 +4,7 @@
 
 A comprehensive IoT solution for monitoring temperature and humidity in egg incubators using an ESP32 microcontroller. This project provides real-time monitoring, data logging, and visualization through a responsive web interface.
 
-![Egg IncuBuddy Interface](https://raw.githubusercontent.com/username/egg-incubuddy/main/docs/images/interface.png)
+![Egg IncuBuddy Interface](https://github.com/Grey-Lancaster/IncuBuddy/blob/main/docs/images/inc.png))
 
 ## 📋 Features
 
