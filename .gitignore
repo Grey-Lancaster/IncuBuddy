@@ -1,0 +1,4 @@
+.pio/
+.vscode/            # VSCode workspace settings
+build/              # if you use any other build folders
+*.pioenvs/          # old PIO environments
