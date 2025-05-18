@@ -91,8 +91,7 @@ void loadDataFromFile() {
   file.readBytes(buf.get(), size);
   file.close();
 
-  // Serve the favicon from SPIFFS
-  server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico");
+
   
   DynamicJsonDocument doc(JSON_CAPACITY);
   DeserializationError error = deserializeJson(doc, buf.get());
@@ -331,11 +330,12 @@ const char index_html[] PROGMEM = R"rawliteral(
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Egg IncuBuddy</title>
     <title>Egg Incubator Monitor by Papa Lanc</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
+
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+
     <style>
       body.dark-mode {
         background-color: #343a40;
@@ -367,17 +367,44 @@ const char index_html[] PROGMEM = R"rawliteral(
       .navbar {
         justify-content: center;
       }
-      #toggleDarkMode {
-        position: absolute;
-        right: 10px;
+
+      /* Add this */
+      .page-header {
+        text-align: center;
+        margin-top: 30px;
+        margin-bottom: 20px;
+      }
+      .page-header .title {
+        font-size: 2.5rem;
+        font-weight: bold;
+      }
+      .page-header .subtitle {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-top: 5px;
       }
     </style>
   </head>
+
   <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-      <a class="navbar-brand" href="#">Egg Incubator Monitor by Papa Lanc</a>
-      <button class="btn btn-outline-secondary" id="toggleDarkMode">Dark Mode</button>
-    </nav>
+    <!-- START HEADER -->
+    <div class="page-header">
+      <div class="title">IncuBuddy</div>
+      <div class="subtitle">Egg Incubator Monitor by Papa Lanc</div>
+    </div>
+    <!-- END HEADER -->
+
+    <!-- Your existing body content goes here -->
+
+
+
+<nav class="navbar navbar-expand navbar-light bg-light">
+  <div class="ml-auto">
+    <button class="btn btn-outline-secondary btn-sm" id="toggleDarkMode">Dark Mode</button>
+
+  </div>
+</nav>
+
     <div class="container mt-3">
       <div class="row">
         <!-- Current Readings -->
@@ -793,7 +820,7 @@ void setup() {
   Serial.println("NTP client started");
 
   // Set up mDNS
-  if (MDNS.begin("eggtimer")) {
+  if (MDNS.begin("eggtimer2")) {
     Serial.println("MDNS responder started");
   } else {
     Serial.println("Error setting up MDNS responder!");
@@ -867,6 +894,11 @@ void setup() {
     Serial.println("Chart data requested");
     request->send(200, "application/json", getDataJSON());
   });
+
+  // Just before server.begin();
+server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico").setCacheControl("max-age=86400");
+
+
 
   Serial.printf("Free heap after server setup: %d bytes\n", ESP.getFreeHeap());
   server.begin();
