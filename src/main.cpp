@@ -31,6 +31,9 @@ AsyncWebSocket ws("/ws");
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", 0);  // Use raw UTC
 Preferences preferences; // Used to preserve the egg start time
+bool skipNextLoopLog = false;
+float alertThreshold = 95.0;  // Default threshold
+
 
 // Variables for sensor readings and timer
 float temperature = 0.0;
@@ -60,14 +63,39 @@ void addDataPoint(unsigned long timestamp, float temp, float humid);
 void sendWebSocketUpdate();
 
 // --- WebSocket Event Handler ---
+// --- WebSocket Event Handler ---
 void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
-                        AwsEventType type, void *arg, uint8_t *data, size_t len) {
+                      AwsEventType type, void *arg, uint8_t *data, size_t len) {
   if (type == WS_EVT_CONNECT) {
     Serial.println("WebSocket client connected");
+
+    // Force a DHT reading
+    float newTemp = dht.readTemperature(true); // Fahrenheit
+    float newHumid = dht.readHumidity();
+    if (!isnan(newTemp) && newTemp != 0.0) {
+      temperature = newTemp;
+      Serial.print("Immediate Temperature: ");
+      Serial.println(temperature);
+    } else {
+      Serial.println("Failed immediate temperature read");
+    }
+
+    if (!isnan(newHumid) && newHumid != 0.0) {
+      humidity = newHumid;
+      Serial.print("Immediate Humidity: ");
+      Serial.println(humidity);
+    } else {
+      Serial.println("Failed immediate humidity read");
+    }
+
+    // Push update to WebSocket clients
+    sendWebSocketUpdate();
+
   } else if (type == WS_EVT_DISCONNECT) {
     Serial.println("WebSocket client disconnected");
   }
 }
+
 
 // --- SPIFFS Data Functions ---
 void loadDataFromFile() {
@@ -104,12 +132,14 @@ void loadDataFromFile() {
   JsonArray array = doc.as<JsonArray>();
   dataCount = array.size();
   int i = 0;
-  for (JsonObject point : array) {
-    dataHistory[i].timestamp = point["timestamp"];
-    dataHistory[i].temperature = point["temperature"];
-    dataHistory[i].humidity = point["humidity"];
-    i++;
-    if (i >= MAX_DATA_POINTS) break;
+for (JsonObject point : array) {
+  dataHistory[i].timestamp = point["timestamp"];
+  dataHistory[i].temperature = roundf(point["temperature"].as<float>() * 10.0f) / 10.0f;
+  dataHistory[i].humidity    = roundf(point["humidity"].as<float>() * 10.0f) / 10.0f;
+  i++;
+  if (i >= MAX_DATA_POINTS) break;
+
+
   }
   Serial.printf("Loaded %d data points from SPIFFS\n", dataCount);
 }
@@ -127,13 +157,16 @@ void saveDataToFile() {
     point["temperature"] = roundedTemp;
     point["humidity"] = roundedHumid;
   }
-  File file = SPIFFS.open("/data.json", FILE_WRITE);
-  if (!file) {
-    Serial.println("Failed to open data file for writing");
-    return;
-  }
-  serializeJson(doc, file);
-  file.close();
+File file = SPIFFS.open("/data.json", FILE_WRITE);
+if (!file) {
+  Serial.println("Failed to open data file for writing");
+  return;
+}
+serializeJson(doc, file);
+
+file.close();
+
+
   Serial.printf("Saved %d data points to SPIFFS\n", dataCount);
 }
 
@@ -177,9 +210,11 @@ String getDataJSON() {
     point["temperature"] = roundedTemp;
     point["humidity"] = roundedHumid;
   }
-  String result;
-  serializeJson(doc, result);
-  return result;
+String result;
+serializeJson(doc, result);  // <- No 3rd argument
+return result;
+
+
 }
 
 void addDataPoint(unsigned long timestamp, float temp, float humid) {
@@ -190,11 +225,17 @@ void addDataPoint(unsigned long timestamp, float temp, float humid) {
     }
     dataCount = MAX_DATA_POINTS - 1;
   }
+
+  // Round before storing
+  float roundedTemp = roundf(temp * 10.0f) / 10.0f;
+  float roundedHumid = roundf(humid * 10.0f) / 10.0f;
+
   dataHistory[dataCount].timestamp = timestamp;
-  dataHistory[dataCount].temperature = temp;
-  dataHistory[dataCount].humidity = humid;
+  dataHistory[dataCount].temperature = roundedTemp;
+  dataHistory[dataCount].humidity = roundedHumid;
   dataCount++;
 }
+
 
 void resetIncubationTimer() {
   // Reset start time and clear historical data
@@ -209,13 +250,16 @@ void resetIncubationTimer() {
 // --- Modified: Validate timestamp to prevent logging erroneous future values ---
 void logDataPoint() {
   unsigned long sensorTime = timeClient.getEpochTime();
-  // If the sensorTime exceeds our maximum acceptable value, skip logging.
   if (sensorTime > MAX_REASONABLE_TIMESTAMP) {
     Serial.println("Detected an erroneous future timestamp; skipping data point logging");
     return;
   }
+
   if (!isnan(temperature) && !isnan(humidity) && temperature != 0.0 && humidity != 0.0) {
-    addDataPoint(sensorTime, temperature, humidity);
+    // Always round before logging
+    float roundedTemp = roundf(temperature * 10.0f) / 10.0f;
+    float roundedHumid = roundf(humidity * 10.0f) / 10.0f;
+    addDataPoint(sensorTime, roundedTemp, roundedHumid);
     saveDataToFile();
     Serial.println("Data point logged");
   } else {
@@ -315,13 +359,36 @@ void handleSetStartTime(AsyncWebServerRequest *request) {
   int days = daysParam.toInt();
   int hours = hoursParam.toInt();
   unsigned long offset = days * 86400UL + hours * 3600UL;
+
   incubationStartTime = timeClient.getEpochTime() - offset;
   preferences.putULong("startTime", incubationStartTime);
-  // Clear historical data as well.
+
+  // Clear previous data
   dataCount = 0;
   SPIFFS.remove("/data.json");
+
+  // Log a new starting data point
+  float newTemp = dht.readTemperature(true); // Fahrenheit
+  float newHumid = dht.readHumidity();
+  unsigned long now = timeClient.getEpochTime();
+
+  if (!isnan(newTemp) && newTemp != 0.0 && !isnan(newHumid) && newHumid != 0.0) {
+    temperature = newTemp;
+    humidity = newHumid;
+
+    skipNextLoopLog = true;       // Prevent double-logging from loop()
+    lastDataLogTime = now;
+    logDataPoint();
+    Serial.println("Initial data point logged after /setstarttime");
+
+    sendWebSocketUpdate();
+  } else {
+    Serial.println("Skipping initial data log after /setstarttime due to invalid sensor reading");
+  }
+
   request->send(200, "text/plain", "Egg start time updated and history cleared.");
 }
+
 
 // --- Full HTML Page with all Buttons and Data Elements ---
 const char index_html[] PROGMEM = R"rawliteral(
@@ -413,6 +480,13 @@ const char index_html[] PROGMEM = R"rawliteral(
             <div class="card-body">
               <h5 class="card-title">Current Temperature</h5>
               <p class="card-text main-reading" id="temperature">Loading...</p>
+              <div class="form-inline">
+           <label for="tempThreshold" class="mr-2">Alert Below:</label>
+            <input type="number" id="tempThreshold" class="form-control mr-2" style="width: 80px;" />
+
+           <button class="btn btn-sm btn-primary" id="applyThresholdBtn">Apply</button>
+</div>
+
             </div>
           </div>
         </div>
@@ -541,6 +615,11 @@ const char index_html[] PROGMEM = R"rawliteral(
        <button class="btn btn-warning" id="restartBtn" title="Restart the ESP32">Restart</button>
    
         </div>
+
+      <div class="row mb-3">
+
+</div>
+  
       </div>
       <!-- OTA Update Link -->
       <div class="row mb-3">
@@ -563,7 +642,16 @@ const char index_html[] PROGMEM = R"rawliteral(
       socket.onmessage = function(event) {
         let data = JSON.parse(event.data);
         if (data.type === "update") {
-          document.getElementById('temperature').textContent = data.temperature + " °F";
+          let tempEl = document.getElementById('temperature');
+let threshold = parseFloat(document.getElementById('tempThreshold').value) || 0;
+tempEl.textContent = data.temperature + " °F";
+
+if (data.temperature < threshold) {
+  tempEl.style.color = "red";
+} else {
+  tempEl.style.color = "";  // Revert to default
+}
+
           document.getElementById('humidity').textContent = data.humidity + " %";
           document.getElementById('time').textContent = data.incubationTime;
           let startDate = new Date(data.startTime * 1000);
@@ -616,14 +704,30 @@ const char index_html[] PROGMEM = R"rawliteral(
       .catch(err=>console.error(err));
   }
 });
-  
-        
-        document.getElementById('resetBtn').addEventListener('click', function() {
-          if (confirm('Are you sure you want to start a new batch of eggs? This will reset everything: charts, start time, and all historical data.')) {
-            fetch('/reset')
-              .then(() => { fetchChartData(); });
-          }
-        });
+// === Restore and Save Temperature Threshold ===
+const tempThresholdInput = document.getElementById('tempThreshold');
+
+// Restore saved threshold on load
+let savedThreshold = localStorage.getItem('tempThreshold');
+if (savedThreshold) {
+  tempThresholdInput.value = savedThreshold;
+}
+
+// Save threshold whenever it's changed
+tempThresholdInput.addEventListener('input', function () {
+  localStorage.setItem('tempThreshold', this.value);
+});
+
+// === Reset Button Handler ===
+document.getElementById('resetBtn').addEventListener('click', function () {
+  if (confirm('Are you sure you want to start a new batch of eggs? This will reset everything: charts, start time, and all historical data.')) {
+    fetch('/reset')
+      .then(() => {
+        fetchChartData();
+      });
+  }
+});
+
         
         document.getElementById('updateStartBtn').addEventListener('click', function() {
           let days = document.getElementById('inputDays').value;
@@ -754,6 +858,22 @@ const char index_html[] PROGMEM = R"rawliteral(
           })
           .catch(error => console.error('Error fetching chart data:', error));
       }
+// Load threshold on page load
+fetch('/getthreshold')
+  .then(r => r.text())
+  .then(val => {
+    document.getElementById('tempThreshold').value = val;
+  });
+
+// Apply new threshold to ESP32
+document.getElementById('applyThresholdBtn').addEventListener('click', function () {
+  let value = parseFloat(document.getElementById('tempThreshold').value);
+  if (!isNaN(value)) {
+    fetch('/setthreshold?value=' + value)
+      .then(() => alert(' Threshold updated to ' + value + ' °F '));
+  }
+});
+          
     </script>
   </body>
 </html>
@@ -789,6 +909,7 @@ void setup() {
   // Load saved data points from SPIFFS
   loadDataFromFile();
   
+  
   Serial.printf("Free heap before WiFi: %d bytes\n", ESP.getFreeHeap());
   
   // Initialize Preferences and preserve the incubation start time
@@ -802,6 +923,23 @@ void setup() {
     incubationStartTime = storedStart;
     Serial.println("Loaded stored incubation start time.");
   }
+
+  // ✅ ADD THIS
+preferences.begin("threshold-store", false);
+if (!preferences.isKey("threshold")) {
+  preferences.putFloat("threshold", 95.0);
+  alertThreshold = 95.0;
+  Serial.println("Threshold not found. Setting default to 95.0");
+} else {
+  alertThreshold = preferences.getFloat("threshold", 95.0);
+  Serial.print("Loaded saved threshold: ");
+  Serial.println(alertThreshold);
+}
+preferences.end();
+
+
+
+
   
   // Set up WiFiManager
   WiFiManager wifiManager;
@@ -820,7 +958,7 @@ void setup() {
   Serial.println("NTP client started");
 
   // Set up mDNS
-  if (MDNS.begin("eggtimer2")) {
+  if (MDNS.begin("eggtimer")) {
     Serial.println("MDNS responder started");
   } else {
     Serial.println("Error setting up MDNS responder!");
@@ -858,6 +996,51 @@ void setup() {
     request->send(SPIFFS, "/data.json", "application/json", true);
   });
 
+  // Handle JSON file upload
+
+ // Upload JSON HTML page
+server.on("/upload_json", HTTP_GET, [](AsyncWebServerRequest *request){
+  request->send_P(200, "text/html", R"rawliteral(
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Upload data.json</title>
+    </head>
+    <body>
+      <h2>Upload New data.json File</h2>
+      <form method="POST" action="/upload_json" enctype="multipart/form-data">
+        <input type="file" name="upload"><br><br>
+        <input type="submit" value="Upload JSON">
+      </form>
+      <p><a href="/">Back to main page</a></p>
+    </body>
+    </html>
+  )rawliteral");
+});  
+server.on("/upload_json", HTTP_POST, [](AsyncWebServerRequest *request) {
+  request->send(200, "text/plain", "Upload complete. Reboot device or refresh chart.");
+}, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+  static File uploadFile;
+
+  if (index == 0) {
+    Serial.printf("Uploading file: %s\n", filename.c_str());
+    if (SPIFFS.exists("/data.json")) {
+      SPIFFS.remove("/data.json");
+    }
+    uploadFile = SPIFFS.open("/data.json", FILE_WRITE);
+  }
+
+  if (uploadFile) {
+    uploadFile.write(data, len);
+  }
+
+  if (final) {
+    Serial.println("Upload complete");
+    uploadFile.close();
+  }
+});
+
+
   // Define HTTP routes
   server.on("/test", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "text/plain", "Server is running!");
@@ -885,15 +1068,71 @@ void setup() {
     else
       request->send(200, "text/plain", String(incubationStartTime));
   });
+
+  
   server.on("/reset", HTTP_GET, [](AsyncWebServerRequest *request) {
-    Serial.println("Timer reset requested");
-    resetIncubationTimer();
-    request->send(200, "text/plain", "Timer and all data reset");
-  });
+  Serial.println("Timer reset requested");
+  resetIncubationTimer();
+
+  float newTemp = dht.readTemperature(true); // Fahrenheit
+  float newHumid = dht.readHumidity();
+  unsigned long now = timeClient.getEpochTime();
+
+  if (!isnan(newTemp) && newTemp != 0.0 && !isnan(newHumid) && newHumid != 0.0) {
+    temperature = newTemp;
+    humidity = newHumid;
+    
+    skipNextLoopLog = true;       // <== Set the flag before log
+    lastDataLogTime = now;
+    logDataPoint();
+    Serial.println("Initial data point logged after reset");
+
+    sendWebSocketUpdate();
+  } else {
+    Serial.println("Skipping initial data log after reset due to invalid sensor reading");
+  }
+
+  request->send(200, "text/plain", "Timer and all data reset");
+});
+
+
+
   server.on("/data", HTTP_GET, [](AsyncWebServerRequest *request) {
     Serial.println("Chart data requested");
     request->send(200, "application/json", getDataJSON());
   });
+
+// Add this to handle threshold reading
+server.on("/getthreshold", HTTP_GET, [](AsyncWebServerRequest *request){
+  preferences.begin("threshold-store", true);
+  float threshold = preferences.getFloat("threshold", 95.0);
+  preferences.end();
+  request->send(200, "text/plain", String(threshold, 1));
+});
+server.on("/setthreshold", HTTP_GET, [](AsyncWebServerRequest *request){
+  if (request->hasParam("value")) {
+    float threshold = request->getParam("value")->value().toFloat();
+    
+    // Properly close any open namespace first
+    preferences.end();
+    
+    // Now begin the correct namespace
+    if (preferences.begin("threshold-store", false)) {
+      preferences.putFloat("threshold", threshold);  // Save it
+      preferences.end();
+      alertThreshold = threshold;
+      sendWebSocketUpdate();  // forces display update immediately
+
+      request->send(200, "text/plain", "Threshold saved: " + String(threshold, 1));
+    } else {
+      request->send(500, "text/plain", "Failed to open preferences namespace");
+    }
+  } else {
+    request->send(400, "text/plain", "Missing value param");
+  }
+});
+
+
 
   // Just before server.begin();
 server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico").setCacheControl("max-age=86400");
@@ -915,14 +1154,20 @@ void loop() {
     //               currentEpoch, lastDataLogTime, currentEpoch - lastDataLogTime);
 
     // Log data point every 3600 seconds (1 hour)
-    if (currentEpoch > 1600000000 &&
-        (lastDataLogTime == 0 || currentEpoch - lastDataLogTime >= 3600)) {
-      logDataPoint();
-      lastDataLogTime = currentEpoch;
-      Serial.println("Data point logged");
-    }
-    
-    // Update sensor readings every minute
+if (currentEpoch > 1600000000 &&
+    (lastDataLogTime == 0 || currentEpoch - lastDataLogTime >= 3600)) {
+
+  if (skipNextLoopLog) {
+    Serial.println("Skipping one loop-triggered data log (already logged manually)");
+    skipNextLoopLog = false;
+  } else {
+    logDataPoint();
+    lastDataLogTime = currentEpoch;
+    Serial.println("Data point logged");
+  }
+}
+
+    // Update sensor readings every minute 60000
     static unsigned long lastSensorUpdate = 0;
     if (millis() - lastSensorUpdate > 60000) {
       float newTemp = dht.readTemperature(true); // Fahrenheit
