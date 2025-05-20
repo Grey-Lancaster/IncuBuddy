@@ -240,4 +240,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 Project Creator - [Grey Lancaster](mailto:grey@smallbizserver.com)
 
-Project Link: [https://github.com/username/egg-incubuddy](https://github.com/username/egg-incubuddy)
+Project Link: [https://github.com/Grey-Lancaster/incubuddy](https://github.com/Grey-Lancaster/IncuBuddy)
