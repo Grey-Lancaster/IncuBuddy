@@ -120,14 +120,16 @@ monitor_speed = 115200
 2. Connect to the "EggTimer-Setup" WiFi network that appears
 3. Follow the captive portal instructions to configure your WiFi credentials
 4. The device will connect to your WiFi network and display its IP address on the Serial Monitor
-5. Access the web interface by entering the IP address in your web browser
-6. You can also access the device via mDNS at http://eggtimer.local/ if your system supports mDNS
+5. You need to reboot the deivice to start the web service
+6. Access the web interface by entering the IP address in your web browser
+7. You can also access the device via mDNS at http://eggtimer.local/ if your system supports mDNS
 
 ## 🖥️ Web Interface
 
 The web interface provides:
 
 - Current temperature and humidity readings
+- Threshold settings for temp and humidity
 - Incubation timer display
 - Statistical summaries for the last 24 hours and all time
 - Interactive chart with temperature and humidity data
@@ -197,6 +199,8 @@ egg-incubuddy/
 ├── include/                  # Header files (for PlatformIO)
 │
 ├── data/                     # SPIFFS files
+│   ├── index.html            # Main web interface
+│   ├── upload.html           # File upload interface
 │   └── favicon.ico           # Browser tab icon
 │
 ├── platformio.ini            # PlatformIO configuration
