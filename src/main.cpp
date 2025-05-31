@@ -451,7 +451,7 @@ void setup() {
   waitForTimeSync();
   Serial.println("NTP client started");
 
-  if (MDNS.begin("IncuBuddy3")) {
+  if (MDNS.begin("IncuBuddy")) {
     Serial.println("MDNS responder started");
   } else {
     Serial.println("Error setting up MDNS responder!");
