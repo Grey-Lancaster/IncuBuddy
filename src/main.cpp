@@ -451,7 +451,7 @@ void setup() {
   waitForTimeSync();
   Serial.println("NTP client started");
 
-  if (MDNS.begin("IncuBuddy")) {
+  if (MDNS.begin("IncuBuddy3")) {
     Serial.println("MDNS responder started");
   } else {
     Serial.println("Error setting up MDNS responder!");
@@ -631,9 +631,9 @@ void loop() {
     timeClient.update();
     unsigned long currentEpoch = timeClient.getEpochTime();
 
-    // Log data point every 10 minutes (600 seconds)
+    // Log data point every hour (3600 seconds)
     if (currentEpoch > 1600000000 &&
-        (lastDataLogTime == 0 || currentEpoch - lastDataLogTime >= 600)) {
+        (lastDataLogTime == 0 || currentEpoch - lastDataLogTime >= 3600)) {
 
       if (skipNextLoopLog) {
         Serial.println("Skipping one loop-triggered data log (already logged manually)");
@@ -644,6 +644,7 @@ void loop() {
         Serial.println("Data point logged from loop");
       }
     }
+  
 
     // Update sensor readings every minute
     static unsigned long lastSensorUpdate = 0;
