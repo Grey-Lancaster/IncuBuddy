@@ -74,45 +74,58 @@ In the Arduino IDE, go to Tools → Manage Libraries and install:
 7. SPIFFS by ESP32
 8. ElegantOTA by Ayush Sharma
 
-### Development Environment Options
+# ESP32 EggTimer Development Guide
 
-#### Option 1: Arduino IDE
+## Development Environment Options
 
+### Option 1: Arduino IDE
 1. Clone this repository or download the source code
 2. Open the `.ino` file in Arduino IDE
 3. Select your ESP32 board from Tools → Board
 4. Select the correct COM port from Tools → Port
-5. Click the Upload button
+5. **Upload SPIFFS Data Files:**
+   - Go to Tools → ESP32 Sketch Data Upload
+   - This will upload the contents of the `/data` folder (including `index.html` and `upload.html`) to the ESP32's SPIFFS filesystem
+   - Wait for the upload to complete before proceeding
+6. Click the Upload button to upload the main sketch
 
-#### Option 2: VS Code with PlatformIO
-
+### Option 2: VS Code with PlatformIO
 PlatformIO provides a more powerful development environment with advanced features like code completion, debugging, and multi-project management.
 
-1. Install [VS Code](https://code.visualstudio.com/)
-2. Install the [PlatformIO extension](https://marketplace.visualstudio.com/items?itemName=platformio.platformio-ide) from the VS Code marketplace
+1. Install VS Code
+2. Install the PlatformIO extension from the VS Code marketplace
 3. Clone this repository or download the source code
-4. In VS Code, select "Open Folder" and navigate to the project directory
-5. Create a `platformio.ini` file in the root directory with the following content:
 
-```ini
-[env:esp32dev]
-platform = espressif32
-board = esp32dev
-framework = arduino
-lib_deps = 
-    tzapu/WiFiManager @ ^2.0.11-beta
-    https://github.com/me-no-dev/ESPAsyncWebServer.git
-    https://github.com/me-no-dev/AsyncTCP.git
-    adafruit/DHT sensor library @ ^1.4.4
-    arduino-libraries/NTPClient @ ^3.2.1
-    bblanchon/ArduinoJson @ ^6.20.0
-    ayushsharma82/ElegantOTA @ ^3.1.0
-monitor_speed = 115200
+7. **Upload SPIFFS Data Files:**
+   - Use the PlatformIO sidebar
+   - Click on "Build Filesystem Image"
+   - Click on "Upload Filesystem Image" or use the command palette (Ctrl+Shift+P) and search for "PlatformIO: Upload Filesystem Image"
+   - This uploads the `/data` folder contents to SPIFFS
+8. Use the PlatformIO sidebar to build and upload the project
+9. Monitor the device using the PlatformIO Serial Monitor
+
+## SPIFFS Data Folder Structure
+Ensure your project has a `/data` folder in the root directory containing:
+```
+/data/
+├── index.html
+├── upload.html
+└── [any other web assets]
 ```
 
-6. Move the main `.ino` file content to a `src/main.cpp` file, adding `#include <Arduino.h>` at the top if not already present
-7. Use the PlatformIO sidebar to build and upload the project
-8. Monitor the device using the PlatformIO Serial Monitor
+## First-Time Setup
+1. Power on your ESP32
+2. Connect to the "EggTimer-Setup" WiFi network that appears
+3. Follow the captive portal instructions to configure your WiFi credentials
+4. The device will connect to your WiFi network and display its IP address on the Serial Monitor
+5. You need to reboot the device to start the web service
+6. Access the web interface by entering the IP address in your web browser
+7. You can also access the device via mDNS at http://eggtimer.local/ if your system supports mDNS
+
+## Important Notes
+- **SPIFFS Upload Required:** Since `index.html` and `upload.html` have been moved to SPIFFS to save program space, you must upload the filesystem data before the web interface will work properly
+- Always upload SPIFFS data before uploading the main sketch
+- If you make changes to files in the `/data` folder, remember to re-upload the filesystem image
 
 ### First-Time Setup
 
