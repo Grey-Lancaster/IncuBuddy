@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Egg Incubator Monitor by Papa Lanc</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+
+    <style>
+      body.dark-mode {
+        background-color: #343a40;
+        color: #f8f9fa;
+      }
+      .dark-mode .card {
+        background-color: #495057;
+        color: #f8f9fa;
+      }
+      .dark-mode .navbar {
+        background-color: #495057;
+      }
+      .main-reading {
+        font-size: 2.5rem;
+        font-weight: bold;
+      }
+      .time-range-btns .btn {
+        margin-right: 5px;
+      }
+      .time-range-btns .btn.active {
+        background-color: #007bff !important;
+        border-color: #007bff !important;
+        color: white !important;
+      }
+      .navbar-brand {
+        font-size: 2rem;
+        font-weight: bold;
+      }
+      .navbar {
+        justify-content: center;
+      }
+
+      /* Add this */
+      .page-header {
+        text-align: center;
+        margin-top: 30px;
+        margin-bottom: 20px;
+      }
+      .page-header .title {
+        font-size: 2.5rem;
+        font-weight: bold;
+      }
+      .page-header .subtitle {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-top: 5px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- START HEADER -->
+    <div class="page-header">
+      <div class="title">IncuBuddy</div>
+      <div class="subtitle">Egg Incubator Monitor by Papa Lanc</div>
+    </div>
+    <!-- END HEADER -->
+
+    <!-- Your existing body content goes here -->
+
+
+
+<nav class="navbar navbar-expand navbar-light bg-light">
+  <div class="ml-auto">
+    <button class="btn btn-outline-secondary btn-sm" id="toggleDarkMode">Dark Mode</button>
+
+  </div>
+</nav>
+
+    <div class="container mt-3">
+      <div class="row">
+        <!-- Current Readings -->
+        <div class="col-md-4">
+          <div class="card mb-3">
+            <div class="card-body">
+              <h5 class="card-title">Current Temperature</h5>
+              <p class="card-text main-reading" id="temperature">Loading...</p>
+              <div class="form-inline">
+           <label for="tempThreshold" class="mr-2">Alert Below:</label>
+            <input type="number" id="tempThreshold" class="form-control mr-2" style="width: 80px;" />
+
+           <button class="btn btn-sm btn-primary" id="applyThresholdBtn">Apply</button>
+</div>
+
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card mb-3">
+            <div class="card-body">
+              <h5 class="card-title">Current Humidity</h5>
+              <p class="card-text main-reading" id="humidity">Loading...</p>
+              <div class="form-inline">
+               <label for="humidityThreshold" class="mr-2">Alert Below:</label>
+               <input type="number" id="humidityThreshold" class="form-control mr-2" style="width: 80px;" />
+               <button class="btn btn-sm btn-primary" id="applyHumidityBtn">Apply</button>
+            </div>
+          </div>
+        </div>
+     </div>   
+        <div class="col-md-4">
+          <div class="card mb-3">
+            <div class="card-body">
+              <h5 class="card-title">Incubation Time</h5>
+              <p class="card-text main-reading" id="time">Loading...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <!-- Summary Stats (Last 24h) -->
+        <div class="col-md-6">
+          <div class="card mb-3">
+            <div class="card-body">
+              <h5 class="card-title">Temperature Summary (Last 24h)</h5>
+              <p class="card-text" id="tempSummary">Loading...</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card mb-3">
+            <div class="card-body">
+              <h5 class="card-title">Humidity Summary (Last 24h)</h5>
+              <p class="card-text" id="humidSummary">Loading...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <!-- Timer Start Display -->
+        <div class="col">
+          <div class="card mb-3">
+            <div class="card-body">
+              <h5 class="card-title">Egg Timer Started</h5>
+              <p class="card-text" id="startTimeDisplay">Loading...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row mb-3">
+        <!-- Chart Time Range Buttons -->
+        <div class="col text-center time-range-btns">
+          <div class="btn-group btn-group-toggle" data-toggle="buttons">
+            <label class="btn btn-secondary active" id="btn-24h">
+              <input type="radio" name="options" checked> 24 Hours
+            </label>
+            <label class="btn btn-secondary" id="btn-7d">
+              <input type="radio" name="options"> 7 Days
+            </label>
+            <label class="btn btn-secondary" id="btn-all">
+              <input type="radio" name="options"> All Data
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <!-- Chart -->
+        <div class="col">
+          <div class="card mb-3">
+            <div class="card-body">
+              <canvas id="incubationChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row mb-3">
+        <!-- All Time Summary: Separate boxes -->
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">All Time Temperature Summary</h5>
+              <p class="card-text" id="allTempSummary">Loading...</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">All Time Humidity Summary</h5>
+              <p class="card-text" id="allHumidSummary">Loading...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- "Start New Batch" Button -->
+      <div class="row mb-3">
+        <div class="col text-center">
+          <button class="btn btn-danger" id="resetBtn" title="Use this button when starting a new batch of eggs. This will reset everything: charts, start time, and all historical data.">Start New Batch</button>
+        </div>
+      </div>
+      <!-- Update Start Time Input Group -->
+      <div class="row mb-3">
+        <div class="col text-center">
+          <div class="input-group">
+            <div class="input-group-prepend">
+              <span class="input-group-text" title="Enter the number of days the eggs have been incubating">Days</span>
+            </div>
+            <input type="number" class="form-control" id="inputDays" placeholder="0">
+            <div class="input-group-prepend">
+              <span class="input-group-text" title="Enter the additional hours the eggs have been incubating">Hours</span>
+            </div>
+            <input type="number" class="form-control" id="inputHours" placeholder="0">
+            <div class="input-group-append">
+              <button class="btn btn-primary" id="updateStartBtn" title="Update the egg start time. This will clear all historical data and set a custom start time for eggs already in the incubator.">Update Start Time</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Download Data JSON Button -->
+      <div class="row mb-3">
+        <div class="col text-center">
+          <a href="/download" class="btn btn-success" role="button">
+            Download Data JSON
+          </a>
+       <button class="btn btn-warning" id="restartBtn" title="Restart the ESP32">Restart</button>
+   
+        </div>
+
+      <div class="row mb-3">
+
+</div>
+  
+      </div>
+      <!-- OTA Update Link -->
+      <div class="row mb-3">
+        <div class="col text-center">
+          <a href="/update" class="btn btn-secondary" title="Click here to upload a new firmware .bin file">OTA Update</a>
+        </div>
+      </div>
+    </div>
+  
+    <!-- JS: jQuery, Bootstrap, Chart.js -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      let myChart;
+      let chartData;
+      let currentRange = '24h'; // Default time range
+      
+      let socket = new WebSocket('ws://' + window.location.hostname + '/ws');
+      socket.onmessage = function(event) {
+        let data = JSON.parse(event.data);
+        if (data.type === "update") {
+          let tempEl = document.getElementById('temperature');
+let threshold = parseFloat(document.getElementById('tempThreshold').value) || 0;
+tempEl.textContent = data.temperature + " °F";
+
+if (data.temperature < threshold) {
+  tempEl.style.color = "red";
+} else {
+  tempEl.style.color = "";  // Revert to default
+}
+if (data.humidity !== undefined) {
+  const humidityDisplay = document.getElementById('humidity');
+  humidityDisplay.textContent = data.humidity.toFixed(1) + ' %';
+
+  const humidityThreshold = parseFloat(document.getElementById('humidityThreshold').value || 40.0);
+  humidityDisplay.style.color = (data.humidity < humidityThreshold) ? 'red' : '';
+}
+
+          document.getElementById('humidity').textContent = data.humidity + " %";
+          document.getElementById('time').textContent = data.incubationTime;
+          let startDate = new Date(data.startTime * 1000);
+          let options = { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+          document.getElementById('startTimeDisplay').textContent = startDate.toLocaleString(undefined, options);
+          if (data.summary) {
+            document.getElementById('tempSummary').textContent = 
+              "Avg: " + data.summary.avgTemp + " °F, Min: " + data.summary.minTemp + " °F, Max: " + data.summary.maxTemp + " °F";
+            document.getElementById('humidSummary').textContent = 
+              "Avg: " + data.summary.avgHumid + " %, Min: " + data.summary.minHumid + " %, Max: " + data.summary.maxHumid + " %";
+          }
+          if (data.allSummary) {
+            document.getElementById('allTempSummary').textContent =
+              "Avg: " + data.allSummary.avgTemp + " °F, Min: " + data.allSummary.minTemp + " °F, Max: " + data.allSummary.maxTemp + " °F";
+            document.getElementById('allHumidSummary').textContent =
+              "Avg: " + data.allSummary.avgHumid + " %, Min: " + data.allSummary.minHumid + " %, Max: " + data.allSummary.maxHumid + " %";
+          }
+        }
+      };
+      
+      socket.onopen = function(event) {
+        console.log("WebSocket connected.");
+      };
+      
+      socket.onclose = function(event) {
+        console.log("WebSocket disconnected.");
+      };
+      
+      document.addEventListener('DOMContentLoaded', function() {
+          fetch('/temperature')
+      .then(r => r.text())
+      .then(t => {
+        document.getElementById('temperature').textContent = t + ' °F';
+      });
+    fetch('/humidity')
+      .then(r => r.text())
+      .then(h => {
+        document.getElementById('humidity').textContent = h + ' %';
+      });
+    fetch('/time')
+      .then(r => r.text())
+      .then(tm => {
+        document.getElementById('time').textContent = tm;
+      });
+        fetchChartData();
+      document.getElementById('restartBtn').addEventListener('click', function(){
+  if(confirm('Reboot the incubator ESP32?')){
+    fetch('/restart')
+      .then(()=>console.log('Restart command sent'))
+      .catch(err=>console.error(err));
+  }
+});
+// === Restore and Save Temperature Threshold ===
+const tempThresholdInput = document.getElementById('tempThreshold');
+
+// Restore saved threshold on load
+let savedThreshold = localStorage.getItem('tempThreshold');
+if (savedThreshold) {
+  tempThresholdInput.value = savedThreshold;
+}
+
+// Save threshold whenever it's changed
+tempThresholdInput.addEventListener('input', function () {
+  localStorage.setItem('tempThreshold', this.value);
+});
+
+// === Reset Button Handler ===
+document.getElementById('resetBtn').addEventListener('click', function () {
+  if (confirm('Are you sure you want to start a new batch of eggs? This will reset everything: charts, start time, and all historical data.')) {
+    fetch('/reset')
+      .then(() => {
+        fetchChartData();
+      });
+  }
+});
+
+        
+        document.getElementById('updateStartBtn').addEventListener('click', function() {
+          let days = document.getElementById('inputDays').value;
+          let hours = document.getElementById('inputHours').value;
+          if (confirm('Are you sure you want to update the egg start time? This will clear all historical data and set a custom start time for eggs already in the incubator.')) {
+            fetch('/setstarttime?days=' + days + '&hours=' + hours)
+              .then(response => response.text())
+              .then(result => {
+                alert(result);
+                fetchChartData();
+              })
+              .catch(err => console.error(err));
+          }
+        });
+        
+        document.getElementById('toggleDarkMode').addEventListener('click', function() {
+          document.body.classList.toggle('dark-mode');
+        });
+        document.getElementById('btn-24h').addEventListener('click', function() {
+          currentRange = '24h';
+          updateChart();
+          document.querySelectorAll('.time-range-btns .btn').forEach(btn => btn.classList.remove('active'));
+          this.classList.add('active');
+        });
+        document.getElementById('btn-7d').addEventListener('click', function() {
+          currentRange = '7d';
+          updateChart();
+          document.querySelectorAll('.time-range-btns .btn').forEach(btn => btn.classList.remove('active'));
+          this.classList.add('active');
+        });
+        document.getElementById('btn-all').addEventListener('click', function() {
+          currentRange = 'all';
+          updateChart();
+          document.querySelectorAll('.time-range-btns .btn').forEach(btn => btn.classList.remove('active'));
+          this.classList.add('active');
+        });
+        
+        setInterval(fetchChartData, 60000);
+      });
+      
+      function updateChart() {
+        if (!chartData || chartData.length === 0) return;
+        let filteredData = filterDataByRange(chartData, currentRange);
+        // Filter out invalid readings (temperature > 0) and sort chronologically
+        let validData = filteredData.filter(point => point.temperature > 0);
+        validData.sort((a, b) => a.timestamp - b.timestamp);
+        
+        const labels = validData.map(point => {
+          const date = new Date(point.timestamp * 1000);
+          let timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+          let dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+          return timeStr + ' ' + dateStr;
+        });
+        const tempData = validData.map(point => point.temperature);
+        const humidData = validData.map(point => point.humidity);
+        
+        const validTemps = tempData.filter(v => v > 0);
+        const tempMin = validTemps.length > 0 ? Math.min(...validTemps) : 0;
+        const tempMax = validTemps.length > 0 ? Math.max(...validTemps) : 100;
+        const chartConfig = {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: 'Temperature (°F)',
+                data: tempData,
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                tension: 0.1,
+                yAxisID: 'y'
+              },
+              {
+                label: 'Humidity (%)',
+                data: humidData,
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                tension: 0.1,
+                yAxisID: 'y1'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+              x: { ticks: { maxRotation: 45, minRotation: 45 } },
+              y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                title: { display: true, text: 'Temperature (°F)' },
+                min: tempMin - 5,
+                max: tempMax + 5
+              },
+              y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                title: { display: true, text: 'Humidity (%)' },
+                min: 0,
+                max: 100,
+                grid: { drawOnChartArea: false }
+              }
+            }
+          }
+        };
+        if (myChart) { myChart.destroy(); }
+        const ctx = document.getElementById('incubationChart').getContext('2d');
+        myChart = new Chart(ctx, chartConfig);
+      }
+      
+      function filterDataByRange(data, range) {
+        const now = new Date().getTime() / 1000;
+        switch(range) {
+          case '24h': return data.filter(point => point.timestamp > now - 86400);
+          case '7d': return data.filter(point => point.timestamp > now - 604800);
+          case 'all': default: return data;
+        }
+      }
+      
+      function fetchChartData() {
+        fetch('/data')
+          .then(response => response.json())
+          .then(data => {
+            chartData = data;
+            updateChart();
+          })
+          .catch(error => console.error('Error fetching chart data:', error));
+      }
+// Load threshold on page load
+fetch('/getthreshold')
+  .then(r => r.text())
+  .then(val => {
+    document.getElementById('tempThreshold').value = val;
+  });
+
+// Apply new threshold to ESP32
+document.getElementById('applyThresholdBtn').addEventListener('click', function () {
+  let value = parseFloat(document.getElementById('tempThreshold').value);
+  if (!isNaN(value)) {
+    fetch('/setthreshold?value=' + value)
+      .then(() => alert(' Threshold updated to ' + value + ' °F '));
+  }
+});
+// Load humidity threshold on page load
+fetch('/gethumidity')
+  .then(response => response.text())
+  .then(value => {
+    document.getElementById('humidityThreshold').value = value;
+  });
+
+// Apply new humidity threshold
+document.getElementById('applyHumidityBtn').addEventListener('click', function() {
+  const newValue = document.getElementById('humidityThreshold').value;
+  fetch('/sethumidity?value=' + encodeURIComponent(newValue));
+});
+
+          
+    </script>
+  </body>
+</html>
