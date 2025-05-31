@@ -18,7 +18,7 @@
 #define MAX_DATA_POINTS 504
 
 // Reduced JSON capacity to save memory
-const size_t JSON_CAPACITY = 30000;
+const size_t JSON_CAPACITY = 50000;
 const unsigned long MAX_REASONABLE_TIMESTAMP = 1800000000UL;
 
 // Global objects
