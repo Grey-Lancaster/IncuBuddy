@@ -2,6 +2,7 @@
 #include <WiFi.h>
 #include <ESPmDNS.h>
 #include <WiFiManager.h>
+#include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <DHT.h>
 #include <NTPClient.h>
@@ -122,7 +123,7 @@ void loadDataFromFile() {
   file.readBytes(buf.get(), size);
   file.close();
 
-  DynamicJsonDocument doc(JSON_CAPACITY);
+  DynamicJsonDocument doc(JSON_CAPACITY); // Keep original ArduinoJson v6 syntax
   DeserializationError error = deserializeJson(doc, buf.get());
   if (error) {
     Serial.print("Failed to parse data file: ");
@@ -144,11 +145,11 @@ void loadDataFromFile() {
 }
 
 void saveDataToFile() {
-  DynamicJsonDocument doc(JSON_CAPACITY);
+  DynamicJsonDocument doc(JSON_CAPACITY); // Keep original ArduinoJson v6 syntax
   JsonArray array = doc.to<JsonArray>();
   for (int i = 0; i < dataCount; i++){
     if ((i & 0x1F) == 0) yield();   
-    JsonObject point = array.createNestedObject();
+    JsonObject point = array.createNestedObject(); // Keep original v6 syntax
     point["timestamp"] = dataHistory[i].timestamp;
     float roundedTemp = roundf(dataHistory[i].temperature * 10.0) / 10.0;
     float roundedHumid = roundf(dataHistory[i].humidity * 10.0) / 10.0;
@@ -194,10 +195,10 @@ String getIncubationTime() {
 }
 
 String getDataJSON() {
-  DynamicJsonDocument doc(JSON_CAPACITY);
+  DynamicJsonDocument doc(JSON_CAPACITY); // Keep original ArduinoJson v6 syntax
   JsonArray array = doc.to<JsonArray>();
   for (int i = 0; i < dataCount; i++){
-    JsonObject point = array.createNestedObject();
+    JsonObject point = array.createNestedObject(); // Keep original v6 syntax
     point["timestamp"] = dataHistory[i].timestamp;
     float roundedTemp = roundf(dataHistory[i].temperature * 10.0) / 10.0;
     float roundedHumid = roundf(dataHistory[i].humidity * 10.0) / 10.0;
@@ -451,12 +452,13 @@ void setup() {
   waitForTimeSync();
   Serial.println("NTP client started");
 
-  if (MDNS.begin("IncuBuddy")) {
+  if (MDNS.begin("IncuBuddy3")) {
     Serial.println("MDNS responder started");
   } else {
     Serial.println("Error setting up MDNS responder!");
   }
 
+  // ElegantOTA with AsyncWebServer (async mode enabled via build flag)
   ElegantOTA.begin(&server);
   ws.onEvent(onWebSocketEvent);
   server.addHandler(&ws);
